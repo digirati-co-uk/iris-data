@@ -1,10 +1,13 @@
 import boto3
-import iris_settings
 import re
 import json
+from botocore.exceptions import ClientError
+
+import iris_settings
+from iris_data.exceptions import IrisStorageError
 
 
-class IrisSession:
+class IrisSessionData:
 
     def __init__(self):
 
@@ -13,7 +16,10 @@ class IrisSession:
 
     def store_data(self, session_id, data):
 
-        self.client.put_object(Bucket=iris_settings.IRIS_SESSION_BUCKET, Key="session/" + session_id, Body=data)
+        try:
+            self.client.put_object(Bucket=iris_settings.IRIS_SESSION_BUCKET, Key="session/" + session_id, Body=data)
+        except ClientError:
+            raise IrisStorageError("Error storing data")
 
     def store_json_data(self, session_id, json_data):
 
@@ -22,30 +28,31 @@ class IrisSession:
 
     def get_data(self, session_id):
 
-        response = self.client.get_object(Bucket=iris_settings.IRIS_SESSION_BUCKET, Key="session/" + session_id)
-        return response['Body'].read()
+        try:
+            response = self.client.get_object(Bucket=iris_settings.IRIS_SESSION_BUCKET, Key="session/" + session_id)
+            return response['Body'].read()
+        except ClientError:
+            raise IrisStorageError("Error getting data")
 
     def get_json_data(self, session_id):
 
         return json.loads(self.get_data(session_id))
 
-    def store_shared_data(self, shared_id, data):
-
-        self.client.put_object(Bucket=iris_settings.IRIS_SESSION_BUCKET, Key="shared/" + shared_id,
-                               Body=data)
-
     def store_shared_json_data(self, shared_id, json_data):
 
-        self.store_shared_data(shared_id, json.dumps(json_data))
-
-    def get_shared_data(self, shared_id):
-
-        response = self.client.get_object(Bucket=iris_settings.IRIS_SESSION_BUCKET, Key="shared/" + shared_id)
-        return response['Body'].read()
+        try:
+            self.client.put_object(Bucket=iris_settings.IRIS_SESSION_BUCKET, Key="shared/" + shared_id,
+                                   Body=json.dumps(json_data))
+        except ClientError:
+            raise IrisStorageError("Error storing data")
 
     def get_shared_json_data(self, shared_id):
 
-        return json.loads(self.get_shared_data(shared_id))
+        try:
+            response = self.client.get_object(Bucket=iris_settings.IRIS_SESSION_BUCKET, Key="shared/" + shared_id)
+            return json.loads(response['Body'].read())
+        except ClientError:
+            raise IrisStorageError("Error getting data")
 
     def expand_json_obj(self, obj):
 
@@ -78,4 +85,3 @@ class IrisSession:
                             shared[replacement_id] = self.get_shared_json_data(replacement_id)
                         return shared[replacement_id]
             return obj
-
