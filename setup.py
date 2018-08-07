@@ -3,10 +3,10 @@
 from distutils.core import setup
 
 setup(name='iris-data',
-      version='1.0',
+      version='0',
       description='Iris session data library',
       author='Digirati Ltd',
-      py_modules=['iris_data'],
+      packages=['iris_data',],
       license='MIT',
       install_requires=[
           'boto3',
